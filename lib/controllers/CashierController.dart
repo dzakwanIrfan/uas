@@ -1,12 +1,22 @@
 import 'package:get/get.dart';
+import 'package:pos_app/controllers/DashboardController.dart';
 import '../models/product.dart';
+import '../models/transaction.dart';
 
 class CashierController extends GetxController {
   final RxList<Product> cartItems = <Product>[].obs;
   final RxDouble total = 0.0.obs;
 
+  // Reference to DashboardController
+  late DashboardController _dashboardController;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _dashboardController = Get.find<DashboardController>();
+  }
+
   void addProduct(String name, double price) {
-    // Check if product already exists in cart
     final existingProduct = cartItems.firstWhere(
       (item) => item.name == name,
       orElse: () => Product(name: '', price: 0),
@@ -48,13 +58,34 @@ class CashierController extends GetxController {
   }
 
   void completeTransaction() {
-    // Here you would typically save the transaction
-    // For now, we'll just clear the cart
+    if (cartItems.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'Cart is empty',
+        snackPosition: SnackPosition.TOP,
+      );
+      return;
+    }
+
+    // Create new transaction
+    final transaction = Transaction(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      date: DateTime.now(),
+      products: List.from(cartItems),
+      total: total.value,
+    );
+
+    // Update dashboard data
+    _dashboardController.addTransaction(transaction);
+
+    // Show success message
     Get.snackbar(
       'Success',
       'Transaction completed successfully!',
       snackPosition: SnackPosition.TOP,
     );
+
+    // Clear cart
     clearCart();
   }
 }

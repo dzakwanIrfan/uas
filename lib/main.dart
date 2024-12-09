@@ -22,8 +22,8 @@ class MyApp extends StatelessWidget {
       ),
       initialBinding: BindingsBuilder(() {
         Get.put(AuthController());
-        Get.put(DashboardController());
-        Get.put(CashierController());
+        Get.put(DashboardController()); // Initialize first
+        Get.put(CashierController()); // Initialize second
       }),
       home: LoginView(),
       getPages: [

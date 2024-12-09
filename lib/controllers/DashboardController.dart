@@ -1,4 +1,6 @@
 import 'package:get/get.dart';
+import '../models/transaction.dart';
+import '../models/product.dart';
 
 class DashboardController extends GetxController {
   final RxDouble todayTotal = 0.0.obs;
@@ -7,70 +9,101 @@ class DashboardController extends GetxController {
   final List<String> topProducts = [];
   final List<double> topProductSales = [];
 
+  // Store all transactions
+  final List<Transaction> _transactions = [];
+
   @override
   void onInit() {
     super.onInit();
-    loadDashboardData();
+    _initializeWeeklyData();
   }
 
-  void loadDashboardData() {
-    try {
-      // Simulate API call
-      todayTotal.value = 2500000;
-      transactionCount.value = 48;
+  void _initializeWeeklyData() {
+    weeklyData.assignAll(List.generate(7, (index) => 0.0));
+  }
 
-      // Set weekly data
-      weeklyData.assignAll([
-        1500000,
-        2100000,
-        1800000,
-        2500000,
-        1900000,
-        2300000,
-        2500000,
-      ]);
+  void addTransaction(Transaction transaction) {
+    _transactions.add(transaction);
+    _updateDashboardData();
+  }
 
-      // Load top products data
-      topProducts.clear();
-      topProductSales.clear();
+  void _updateDashboardData() {
+    // Update today's total and transaction count
+    final today = DateTime.now();
+    final todayTransactions = _transactions.where((t) =>
+        t.date.year == today.year &&
+        t.date.month == today.month &&
+        t.date.day == today.day);
 
-      topProducts.addAll([
-        'Product A',
-        'Product B',
-        'Product C',
-        'Product D',
-        'Product E',
-      ]);
+    todayTotal.value = todayTransactions.fold(0.0, (sum, t) => sum + t.total);
+    transactionCount.value = todayTransactions.length;
 
-      topProductSales.addAll([
-        850000,
-        720000,
-        650000,
-        450000,
-        380000,
-      ]);
+    // Update weekly data
+    _updateWeeklyData();
 
-      // Notify UI that data has changed
-      update();
-    } catch (e) {
-      print('Error loading dashboard data: $e');
+    // Update top products
+    _updateTopProducts();
+
+    // Notify UI of changes
+    update();
+  }
+
+  void _updateWeeklyData() {
+    final now = DateTime.now();
+    final weeklyTotals = List.filled(7, 0.0);
+
+    for (var transaction in _transactions) {
+      final difference = now.difference(transaction.date).inDays;
+      if (difference < 7) {
+        weeklyTotals[difference] += transaction.total;
+      }
+    }
+
+    weeklyData.assignAll(weeklyTotals.reversed.toList());
+  }
+
+  void _updateTopProducts() {
+    // Create a map to store product totals
+    final productTotals = <String, double>{};
+
+    // Calculate total sales for each product
+    for (var transaction in _transactions) {
+      for (var product in transaction.products) {
+        final total = product.price * product.quantity;
+        productTotals.update(
+          product.name,
+          (value) => value + total,
+          ifAbsent: () => total,
+        );
+      }
+    }
+
+    // Sort products by total sales
+    final sortedProducts = productTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    // Take top 5 products or less if there are fewer products
+    final topCount = sortedProducts.length > 5 ? 5 : sortedProducts.length;
+
+    // Update top products lists
+    topProducts.clear();
+    topProductSales.clear();
+
+    for (var i = 0; i < topCount; i++) {
+      topProducts.add(sortedProducts[i].key);
+      topProductSales.add(sortedProducts[i].value);
     }
   }
 
   Future<void> refreshData() async {
-    try {
-      // Clear existing data
-      topProducts.clear();
-      topProductSales.clear();
-      update();
+    // Clear data
+    todayTotal.value = 0.0;
+    transactionCount.value = 0;
+    _initializeWeeklyData();
+    topProducts.clear();
+    topProductSales.clear();
 
-      // Simulate API call delay
-      await Future.delayed(Duration(seconds: 1));
-
-      // Load new data
-      loadDashboardData();
-    } catch (e) {
-      print('Error refreshing data: $e');
-    }
+    // Update dashboard
+    _updateDashboardData();
   }
 }
